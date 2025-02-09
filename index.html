@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Registro de Ejercicios (PPL)</title>
+  <!-- Referencia al manifiesto -->
+  <link rel="manifest" href="manifest.json">
+  <style>
+    /* ===================
+       Estilos Generales
+       =================== */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f2f2f2;
+    }
+    header {
+      background-color: #4CAF50;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    nav {
+      margin-top: 1rem;
+      text-align: center;
+    }
+    nav button {
+      background-color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      margin: 0 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    nav button.active {
+      background-color: #ddd;
+    }
+    section {
+      padding: 1rem;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    /* ===================
+       Sección Programa
+       =================== */
+    #exercisesContainer {
+      margin-bottom: 1rem;
+    }
+    .exercise-item {
+      background-color: #fff;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .exercise-item h3 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .exercise-item label {
+      display: inline-block;
+      width: 90px;
+    }
+    .exercise-item input {
+      width: 60px;
+      margin-right: 1rem;
+    }
+    #completeDayBtn {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      padding: 0.7rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    /* ===================
+       Sección Progreso
+       =================== */
+    .chart-container {
+      width: 100%;
+      max-width: 600px;
+      margin: 1rem auto;
+      background-color: #fff;
+      padding: 1rem;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .chart-container canvas {
+      width: 100% !important;
+      height: auto !important;
+    }
+    /* ===================
+       Sección Historial
+       =================== */
+    .history-day {
+      background-color: #fff;
+      margin: 0.5rem 0;
+      padding: 1rem;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .history-day-header {
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+      margin-bottom: 0.5rem;
+    }
+    .history-day-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+    .history-day-details {
+      background-color: #f5f5f5;
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      display: none;
+    }
+    .history-exercise {
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+      background-color: #fff;
+      border-radius: 4px;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .history-exercise h4 {
+      margin: 0 0 0.2rem 0;
+      font-size: 1rem;
+    }
+    .history-exercise p {
+      margin: 0.2rem 0;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Registro de Ejercicios (PPL)</h1>
+    <nav>
+      <button id="tabProgram" class="active">Programa</button>
+      <button id="tabProgress">Progreso</button>
+      <button id="tabHistory">Historial</button>
+    </nav>
+  </header>
+
+  <!-- ====================
+       Sección Programa
+       ==================== -->
+  <section id="programSection">
+    <h2 id="dayTitle"></h2>
+    <div id="exercisesContainer"></div>
+    <button id="completeDayBtn">Completar Día y Guardar</button>
+  </section>
+
+  <!-- ====================
+       Sección Progreso
+       ==================== -->
+  <section id="progressSection" style="display: none;">
+    <h2>Progreso</h2>
+    <div class="chart-container">
+      <h3>Push</h3>
+      <canvas id="pushChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>Pull</h3>
+      <canvas id="pullChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>Legs</h3>
+      <canvas id="legsChart"></canvas>
+    </div>
+  </section>
+
+  <!-- ====================
+       Sección Historial
+       ==================== -->
+  <section id="historySection" style="display: none;">
+    <h2>Historial de Entrenamientos</h2>
+    <div id="historyContainer"></div>
+  </section>
+
+  <!-- Librería Chart.js para gráficas -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    /********************************************************************
+     * 1. ESTRUCTURA DE DATOS
+     ********************************************************************/
+    const defaultProgram = [
+      {
+        dayName: "Push",
+        exercises: [
+          { name: "Press Banca", series: ["12", "10", "8"] },
+          { name: "Banca Inclinada Manc.", series: ["12", "10", "10", "8"] },
+          { name: "Mariposa Máquina", series: ["15", "15", "15", "15"] },
+          { name: "Flexiones de Brazo", series: ["Fallo", "Fallo", "Fallo", "Fallo"] },
+          { name: "Press Militar Sentado", series: ["15", "12", "10", "8"] },
+          { name: "Vuelos Laterales", series: ["15", "15", "15 (+1DS)"] }
+        ]
+      },
+      {
+        dayName: "Pull",
+        exercises: [
+          { name: "Jalón al Pecho Prono", series: ["15", "12", "12", "10"] },
+          { name: "Pull Over Soga", series: ["15", "15", "15"] },
+          { name: "Remo con Barra", series: ["10", "10", "8", "8"] },
+          { name: "Remo Bajo Polea", series: ["12", "12", "10", "8 (+1RP)"] },
+          { name: "Curl Bíceps Barra W", series: ["12", "12", "12", "12"] },
+          { name: "Press Francés Barra W", series: ["15", "15", "15", "15"] },
+          { name: "Bíceps Martillo Soga", series: ["15", "15", "12", "10"] },
+          { name: "Tríceps Soga", series: ["15", "15", "15", "15"] }
+        ]
+      },
+      {
+        dayName: "Legs",
+        exercises: [
+          { name: "Sentadilla Barra Libre", series: ["12", "10", "8"] },
+          { name: "Estocadas con Peso", series: ["12", "12", "12", "12"] },
+          { name: "Sillón de Cuádriceps", series: ["18", "15", "15", "12", "10"] },
+          { name: "Peso Muerto Rumano Manc.", series: ["10", "10", "10"] },
+          { name: "Sillón Femorales", series: ["15", "12", "12", "10"] },
+          { name: "Sillón Cuádriceps (lentas)", series: ["10", "10", "10"] }
+        ]
+      }
+    ];
+
+    let dayNumber = 1;
+    let historyRecords = [];
+
+    /********************************************************************
+     * 2. PERSISTENCIA (localStorage)
+     ********************************************************************/
+    function loadData() {
+      const dn = localStorage.getItem("dayNumber");
+      if (dn !== null) {
+        dayNumber = parseInt(dn, 10);
+      }
+      const hr = localStorage.getItem("historyRecords");
+      if (hr) {
+        historyRecords = JSON.parse(hr);
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem("dayNumber", dayNumber);
+      localStorage.setItem("historyRecords", JSON.stringify(historyRecords));
+    }
+
+    /********************************************************************
+     * 3. RENDERIZAR SECCIÓN PROGRAMA
+     ********************************************************************/
+    function renderProgram() {
+      const dayTitle = document.getElementById("dayTitle");
+      const exercisesContainer = document.getElementById("exercisesContainer");
+      exercisesContainer.innerHTML = "";
+
+      const index = (dayNumber - 1) % 3;
+      const dayData = defaultProgram[index];
+
+      dayTitle.textContent = `Día ${dayNumber}: ${dayData.dayName}`;
+
+      dayData.exercises.forEach((ex) => {
+        const div = document.createElement("div");
+        div.className = "exercise-item";
+
+        const exTitle = document.createElement("h3");
+        exTitle.textContent = ex.name;
+        div.appendChild(exTitle);
+
+        ex.series.forEach((serie, serieIndex) => {
+          const p = document.createElement("p");
+
+          const labelPeso = document.createElement("label");
+          labelPeso.textContent = "Peso:";
+          const inputPeso = document.createElement("input");
+          inputPeso.type = "number";
+          inputPeso.min = "0";
+          inputPeso.step = "0.1";
+          inputPeso.dataset.exerciseName = ex.name;
+          inputPeso.dataset.serieIndex = serieIndex;
+          inputPeso.dataset.type = "weight";
+          labelPeso.appendChild(inputPeso);
+
+          const labelReps = document.createElement("label");
+          labelReps.textContent = "Reps:";
+          const inputReps = document.createElement("input");
+          inputReps.type = "number";
+          inputReps.min = "1";
+          inputReps.dataset.exerciseName = ex.name;
+          inputReps.dataset.serieIndex = serieIndex;
+          inputReps.dataset.type = "reps";
+          labelReps.appendChild(inputReps);
+
+          const spanSerie = document.createElement("span");
+          spanSerie.textContent = ` (Serie: ${serie})`;
+
+          p.appendChild(labelPeso);
+          p.appendChild(inputPeso);
+          p.appendChild(labelReps);
+          p.appendChild(inputReps);
+          p.appendChild(spanSerie);
+
+          div.appendChild(p);
+        });
+
+        exercisesContainer.appendChild(div);
+      });
+    }
+
+    /********************************************************************
+     * 4. COMPLETAR DÍA
+     ********************************************************************/
+    function completeDay() {
+      const index = (dayNumber - 1) % 3;
+      const dayData = defaultProgram[index];
+
+      const inputs = document.querySelectorAll("#exercisesContainer input");
+      const dataMap = {};
+      inputs.forEach((inp) => {
+        const key = inp.dataset.exerciseName + "-" + inp.dataset.serieIndex;
+        if (!dataMap[key]) {
+          dataMap[key] = { weight: 0, reps: 0 };
+        }
+        if (inp.dataset.type === "weight") {
+          dataMap[key].weight = parseFloat(inp.value) || 0;
+        } else {
+          dataMap[key].reps = parseInt(inp.value) || 0;
+        }
+      });
+
+      const now = new Date();
+      let totalWeight = 0;
+      let totalReps = 0;
+      const recordExercises = [];
+
+      dayData.exercises.forEach((ex) => {
+        const exObj = {
+          name: ex.name,
+          sets: []
+        };
+        ex.series.forEach((serie, i) => {
+          const key = ex.name + "-" + i;
+          const w = dataMap[key] ? dataMap[key].weight : 0;
+          const r = dataMap[key] ? dataMap[key].reps : 0;
+          exObj.sets.push({ weight: w, reps: r });
+
+          totalWeight += (w * r);
+          totalReps += r;
+        });
+        recordExercises.push(exObj);
+      });
+
+      const record = {
+        dayNumber,
+        dayName: dayData.dayName,
+        dateStr: now.toLocaleString(),
+        exercises: recordExercises,
+        totalWeight,
+        totalReps,
+        expanded: false
+      };
+
+      historyRecords.push(record);
+      dayNumber++;
+      saveData();
+      alert("Día completado. Datos guardados.");
+      renderProgram();
+      updateCharts();
+    }
+
+    /********************************************************************
+     * 5. PROGRESO (GRÁFICAS)
+     ********************************************************************/
+    let pushChart, pullChart, legsChart;
+
+    function initCharts() {
+      const commonConfig = {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Peso Total (kg)',
+              data: [],
+              borderColor: 'rgba(75, 192, 192, 1)',
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              yAxisID: 'y'
+            },
+            {
+              label: 'Repeticiones',
+              data: [],
+              borderColor: 'rgba(255, 99, 132, 1)',
+              backgroundColor: 'rgba(255, 99, 132, 0.2)',
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left'
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right'
+            }
+          }
+        }
+      };
+
+      const pushCtx = document.getElementById('pushChart').getContext('2d');
+      pushChart = new Chart(pushCtx, JSON.parse(JSON.stringify(commonConfig)));
+
+      const pullCtx = document.getElementById('pullChart').getContext('2d');
+      pullChart = new Chart(pullCtx, JSON.parse(JSON.stringify(commonConfig)));
+
+      const legsCtx = document.getElementById('legsChart').getContext('2d');
+      legsChart = new Chart(legsCtx, JSON.parse(JSON.stringify(commonConfig)));
+
+      updateCharts();
+    }
+
+    function updateCharts() {
+      const pushData = historyRecords.filter(r => r.dayName === "Push");
+      const pullData = historyRecords.filter(r => r.dayName === "Pull");
+      const legsData = historyRecords.filter(r => r.dayName === "Legs");
+
+      pushChart.data.labels = pushData.map(r => r.dateStr);
+      pushChart.data.datasets[0].data = pushData.map(r => r.totalWeight);
+      pushChart.data.datasets[1].data = pushData.map(r => r.totalReps);
+      pushChart.update();
+
+      pullChart.data.labels = pullData.map(r => r.dateStr);
+      pullChart.data.datasets[0].data = pullData.map(r => r.totalWeight);
+      pullChart.data.datasets[1].data = pullData.map(r => r.totalReps);
+      pullChart.update();
+
+      legsChart.data.labels = legsData.map(r => r.dateStr);
+      legsChart.data.datasets[0].data = legsData.map(r => r.totalWeight);
+      legsChart.data.datasets[1].data = legsData.map(r => r.totalReps);
+      legsChart.update();
+    }
+
+    /********************************************************************
+     * 6. HISTORIAL (LISTA DE DÍAS)
+     ********************************************************************/
+    function renderHistory() {
+      const historyContainer = document.getElementById("historyContainer");
+      historyContainer.innerHTML = "";
+
+      const sorted = [...historyRecords].sort((a, b) => b.dayNumber - a.dayNumber);
+
+      sorted.forEach((rec) => {
+        const dayDiv = document.createElement("div");
+        dayDiv.className = "history-day";
+
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "history-day-header";
+
+        const h3 = document.createElement("h3");
+        h3.textContent = `Día ${rec.dayNumber} (${rec.dayName}) - ${rec.dateStr}`;
+
+        headerDiv.appendChild(h3);
+        dayDiv.appendChild(headerDiv);
+
+        const detailsDiv = document.createElement("div");
+        detailsDiv.className = "history-day-details";
+
+        const totalP = document.createElement("p");
+        totalP.innerHTML = `<strong>Peso Total:</strong> ${rec.totalWeight.toFixed(2)} kg | <strong>Reps Totales:</strong> ${rec.totalReps}`;
+        detailsDiv.appendChild(totalP);
+
+        rec.exercises.forEach((ex) => {
+          const exDiv = document.createElement("div");
+          exDiv.className = "history-exercise";
+
+          const exTitle = document.createElement("h4");
+          exTitle.textContent = ex.name;
+          exDiv.appendChild(exTitle);
+
+          ex.sets.forEach((s, idx) => {
+            const p = document.createElement("p");
+            p.textContent = `Serie #${idx + 1}: Peso = ${s.weight} kg, Reps = ${s.reps}`;
+            exDiv.appendChild(p);
+          });
+
+          detailsDiv.appendChild(exDiv);
+        });
+
+        dayDiv.appendChild(detailsDiv);
+
+        headerDiv.addEventListener("click", () => {
+          rec.expanded = !rec.expanded;
+          detailsDiv.style.display = rec.expanded ? "block" : "none";
+        });
+
+        detailsDiv.style.display = rec.expanded ? "block" : "none";
+        historyContainer.appendChild(dayDiv);
+      });
+    }
+
+    /********************************************************************
+     * 7. MANEJO DE TABS
+     ********************************************************************/
+    const tabProgramBtn = document.getElementById("tabProgram");
+    const tabProgressBtn = document.getElementById("tabProgress");
+    const tabHistoryBtn = document.getElementById("tabHistory");
+
+    const programSection = document.getElementById("programSection");
+    const progressSection = document.getElementById("progressSection");
+    const historySection = document.getElementById("historySection");
+
+    tabProgramBtn.addEventListener("click", () => {
+      programSection.style.display = "block";
+      progressSection.style.display = "none";
+      historySection.style.display = "none";
+      tabProgramBtn.classList.add("active");
+      tabProgressBtn.classList.remove("active");
+      tabHistoryBtn.classList.remove("active");
+    });
+
+    tabProgressBtn.addEventListener("click", () => {
+      programSection.style.display = "none";
+      progressSection.style.display = "block";
+      historySection.style.display = "none";
+      tabProgramBtn.classList.remove("active");
+      tabProgressBtn.classList.add("active");
+      tabHistoryBtn.classList.remove("active");
+      updateCharts();
+    });
+
+    tabHistoryBtn.addEventListener("click", () => {
+      programSection.style.display = "none";
+      progressSection.style.display = "none";
+      historySection.style.display = "block";
+      tabProgramBtn.classList.remove("active");
+      tabProgressBtn.classList.remove("active");
+      tabHistoryBtn.classList.add("active");
+      renderHistory();
+    });
+
+    /********************************************************************
+     * 8. INICIALIZACIÓN
+     ********************************************************************/
+    loadData();
+    renderProgram();
+    initCharts();
+
+    document.getElementById("completeDayBtn").addEventListener("click", completeDay);
+
+    /********************************************************************
+     * 9. REGISTRO DEL SERVICE WORKER
+     ********************************************************************/
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+        .then(registration => {
+          console.log('ServiceWorker registrado con éxito: ', registration.scope);
+        })
+        .catch(err => {
+          console.log('Error al registrar el ServiceWorker: ', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
