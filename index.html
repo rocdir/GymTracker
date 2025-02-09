@@ -37,6 +37,19 @@
     nav button.active {
       background-color: #ddd;
     }
+    /* Botones de import/export */
+    .data-sync {
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .data-sync button {
+      background-color: #fff;
+      border: 1px solid #ccc;
+      padding: 0.5rem 1rem;
+      margin: 0 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
     section {
       padding: 1rem;
     }
@@ -146,6 +159,13 @@
       <button id="tabProgress">Progreso</button>
       <button id="tabHistory">Historial</button>
     </nav>
+    <!-- Botones de Importar y Exportar Datos -->
+    <div class="data-sync">
+      <button id="exportBtn">Exportar Datos</button>
+      <button id="importBtn">Importar Datos</button>
+      <!-- Input oculto para seleccionar archivo de importación -->
+      <input type="file" id="importInput" accept="application/json" style="display:none">
+    </div>
   </header>
 
   <!-- ====================
@@ -304,10 +324,8 @@
           p.appendChild(labelReps);
           p.appendChild(inputReps);
           p.appendChild(spanSerie);
-
           div.appendChild(p);
         });
-
         exercisesContainer.appendChild(div);
       });
     }
@@ -348,7 +366,6 @@
           const w = dataMap[key] ? dataMap[key].weight : 0;
           const r = dataMap[key] ? dataMap[key].reps : 0;
           exObj.sets.push({ weight: w, reps: r });
-
           totalWeight += (w * r);
           totalReps += r;
         });
@@ -468,7 +485,6 @@
 
         const h3 = document.createElement("h3");
         h3.textContent = `Día ${rec.dayNumber} (${rec.dayName}) - ${rec.dateStr}`;
-
         headerDiv.appendChild(h3);
         dayDiv.appendChild(headerDiv);
 
@@ -492,7 +508,6 @@
             p.textContent = `Serie #${idx + 1}: Peso = ${s.weight} kg, Reps = ${s.reps}`;
             exDiv.appendChild(p);
           });
-
           detailsDiv.appendChild(exDiv);
         });
 
@@ -549,7 +564,53 @@
     });
 
     /********************************************************************
-     * 8. INICIALIZACIÓN
+     * 8. SINCRONIZACIÓN: EXPORTAR E IMPORTAR DATOS
+     ********************************************************************/
+    // Exportar datos: crea un archivo JSON con los ítems de localStorage
+    function exportData() {
+      const data = {
+        dayNumber: localStorage.getItem("dayNumber"),
+        historyRecords: localStorage.getItem("historyRecords")
+      };
+      const dataStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "datos_entrenamientos.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    document.getElementById("exportBtn").addEventListener("click", exportData);
+
+    // Importar datos: lee un archivo JSON y actualiza localStorage
+    document.getElementById("importBtn").addEventListener("click", () => {
+      document.getElementById("importInput").click();
+    });
+    document.getElementById("importInput").addEventListener("change", function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedData = JSON.parse(e.target.result);
+          if (importedData.dayNumber && importedData.historyRecords) {
+            localStorage.setItem("dayNumber", importedData.dayNumber);
+            localStorage.setItem("historyRecords", importedData.historyRecords);
+            alert("Datos importados correctamente. Se recargará la página para aplicar los cambios.");
+            location.reload();
+          } else {
+            alert("El archivo no tiene el formato esperado.");
+          }
+        } catch (err) {
+          alert("Error al importar datos: " + err);
+        }
+      }
+      reader.readAsText(file);
+    });
+
+    /********************************************************************
+     * 9. INICIALIZACIÓN Y REGISTRO DEL SERVICE WORKER
      ********************************************************************/
     loadData();
     renderProgram();
@@ -557,18 +618,15 @@
 
     document.getElementById("completeDayBtn").addEventListener("click", completeDay);
 
-    /********************************************************************
-     * 9. REGISTRO DEL SERVICE WORKER
-     ********************************************************************/
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
-        .then(registration => {
-          console.log('ServiceWorker registrado con éxito: ', registration.scope);
-        })
-        .catch(err => {
-          console.log('Error al registrar el ServiceWorker: ', err);
-        });
+          .then(registration => {
+            console.log('ServiceWorker registrado con éxito: ', registration.scope);
+          })
+          .catch(err => {
+            console.log('Error al registrar el ServiceWorker: ', err);
+          });
       });
     }
   </script>
